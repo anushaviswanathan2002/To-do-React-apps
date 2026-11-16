@@ -236,3 +236,165 @@ describe('To-do app', () => {
     expect(within(item).getByText('high')).toBeInTheDocument()
   })
 })
+
+describe('Task notes', () => {
+  it('adds a task with notes and reveals them', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }))
+    await user.type(screen.getByPlaceholderText('What needs to be done?'), 'Write the report')
+    await user.type(
+      screen.getByRole('textbox', { name: 'Notes' }),
+      'Include revenue figures and the Q3 outlook',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+
+    await user.click(
+      screen.getByRole('button', { name: 'Show notes for task: Write the report' }),
+    )
+    const item = screen.getByText('Write the report').closest('li')
+    expect(within(item).getByText('Include revenue figures and the Q3 outlook')).toBeInTheDocument()
+  })
+
+  it('hides notes until the notes button is pressed', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }))
+    await user.type(screen.getByPlaceholderText('What needs to be done?'), 'Call the bank')
+    await user.type(screen.getByRole('textbox', { name: 'Notes' }), 'Ask about the fee')
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+
+    // Notes are collapsed by default
+    expect(screen.queryByText('Ask about the fee')).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Show notes for task: Call the bank' }),
+    )
+    expect(screen.getByText('Ask about the fee')).toBeInTheDocument()
+  })
+
+  it('edits notes inline', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(
+      screen.getByRole('button', { name: 'Edit task: Add a new task using the form above' }),
+    )
+
+    const notesInput = screen.getByRole('textbox', { name: 'Edit notes' })
+    await user.clear(notesInput)
+    await user.type(notesInput, 'Updated note')
+    await user.click(screen.getByRole('button', { name: 'Save task' }))
+
+    await user.click(
+      screen.getByRole('button', { name: 'Show notes for task: Add a new task using the form above' }),
+    )
+    expect(screen.getByText('Updated note')).toBeInTheDocument()
+  })
+
+  it('persists notes to localStorage', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }))
+    await user.type(screen.getByPlaceholderText('What needs to be done?'), 'Persisted notes')
+    await user.type(screen.getByRole('textbox', { name: 'Notes' }), 'Keep me')
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
+    expect(stored[0].notes).toBe('Keep me')
+  })
+})
+
+describe('Due dates and overdue highlighting', () => {
+  it('adds a task with a due date and shows the badge', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }))
+    await user.type(screen.getByPlaceholderText('What needs to be done?'), 'Submit taxes')
+    await user.type(screen.getByLabelText('Due date'), '2099-03-15')
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+
+    const item = screen.getByText('Submit taxes').closest('li')
+    expect(within(item).getByText('15 Mar 2099')).toBeInTheDocument()
+  })
+
+  it('highlights an overdue task', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }))
+    await user.type(screen.getByPlaceholderText('What needs to be done?'), 'Overdue task')
+    await user.type(screen.getByLabelText('Due date'), '2020-01-01')
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+
+    const item = screen.getByText('Overdue task').closest('li')
+    expect(item).toHaveClass('task--overdue')
+    expect(within(item).getByText('Overdue')).toBeInTheDocument()
+    expect(screen.getByText(/1 task overdue/)).toBeInTheDocument()
+  })
+
+  it('does not highlight a completed overdue task', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }))
+    await user.type(screen.getByPlaceholderText('What needs to be done?'), 'Done in time')
+    await user.type(screen.getByLabelText('Due date'), '2020-01-01')
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+
+    await user.click(screen.getByRole('checkbox', { name: /Done in time/ }))
+
+    const item = screen.getByText('Done in time').closest('li')
+    expect(item).not.toHaveClass('task--overdue')
+    expect(screen.queryByText(/task overdue/)).not.toBeInTheDocument()
+  })
+
+  it('shows Today for a task due today', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    const today = new Date()
+    const value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }))
+    await user.type(screen.getByPlaceholderText('What needs to be done?'), 'Due today')
+    await user.type(screen.getByLabelText('Due date'), value)
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+
+    const item = screen.getByText('Due today').closest('li')
+    expect(within(item).getByText('Today')).toBeInTheDocument()
+    expect(item).not.toHaveClass('task--overdue')
+  })
+
+  it('edits the due date inline', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(
+      screen.getByRole('button', { name: 'Edit task: Tick a task to mark it as done' }),
+    )
+
+    await user.type(screen.getByLabelText('Change due date'), '2099-06-10')
+    await user.click(screen.getByRole('button', { name: 'Save task' }))
+
+    const item = screen.getByText('Tick a task to mark it as done').closest('li')
+    expect(within(item).getByText('10 Jun 2099')).toBeInTheDocument()
+  })
+
+  it('persists the due date to localStorage', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }))
+    await user.type(screen.getByPlaceholderText('What needs to be done?'), 'Persisted due')
+    await user.type(screen.getByLabelText('Due date'), '2099-12-25')
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
+    expect(stored[0].dueDate).toBe('2099-12-25')
+  })
+})

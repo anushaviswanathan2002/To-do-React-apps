@@ -29,12 +29,15 @@ export function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-export function createTask(title, priority = PRIORITIES.medium) {
+export function createTask(title, options = {}) {
+  const { priority = PRIORITIES.medium, notes = '', dueDate = '' } = options
   const validPriority = PRIORITIES[priority] ? priority : PRIORITIES.medium
   return {
     id: createId(),
     title: title.trim(),
     priority: validPriority,
+    notes: notes.trim(),
+    dueDate,
     completed: false,
     createdAt: Date.now(),
   }

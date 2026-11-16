@@ -21,6 +21,9 @@
   --priority-high-bg: #fef2f2;
   --priority-high-text: #b91c1c;
   --priority-high-border: #fecaca;
+  --due-bg: #f4f4f8;
+  --due-text: #4b4b5a;
+  --due-border: #dcdce6;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
@@ -53,6 +56,9 @@
     --priority-high-bg: #301014;
     --priority-high-text: #fca5a5;
     --priority-high-border: #7f1d1d;
+    --due-bg: #22222d;
+    --due-text: #b6b6c6;
+    --due-border: #34344a;
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
     --focus-ring: 0 0 0 3px rgba(129, 140, 248, 0.4);
     color-scheme: dark;
@@ -132,6 +138,18 @@ body {
   color: var(--text-muted);
 }
 
+.app__overdue {
+  display: inline-block;
+  margin: 0.5rem 0 0;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--priority-high-text);
+  background: var(--priority-high-bg);
+  border: 1px solid var(--priority-high-border);
+  border-radius: 999px;
+}
+
 .app__panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -144,8 +162,90 @@ body {
 
 .task-form {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 1.25rem;
+}
+
+.task-form__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.task-form__details {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.task-form__details[hidden] {
+  display: none;
+}
+
+.task-form__due {
+  padding: 0.6rem 0.65rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.task-form__due:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.task-form__notes {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.task-form__notes::placeholder {
+  color: var(--text-muted);
+}
+
+.task-form__notes:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.task-form__toggle {
+  padding: 0.75rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.task-form__toggle:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.task-form__toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .task-form__input {
@@ -287,6 +387,7 @@ body {
 
 .task {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
   padding: 0.65rem 0.75rem;
@@ -353,6 +454,7 @@ body {
 }
 
 .task__title {
+  flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -398,6 +500,70 @@ body {
 .task--completed .task__priority-badge {
   opacity: 0.55;
   filter: grayscale(40%);
+}
+
+/* Due dates */
+
+.task__due {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+  background: var(--due-bg);
+  color: var(--due-text);
+  border-color: var(--due-border);
+}
+
+.task__due--today {
+  background: var(--priority-low-bg);
+  color: var(--priority-low-text);
+  border-color: var(--priority-low-border);
+}
+
+.task__due--overdue {
+  background: var(--priority-high-bg);
+  color: var(--priority-high-text);
+  border-color: var(--priority-high-border);
+}
+
+/* Overdue task */
+
+.task--overdue {
+  border-color: var(--priority-high-border);
+  background: color-mix(in srgb, var(--priority-high-bg) 55%, var(--surface));
+}
+
+.task--overdue .task__title {
+  color: var(--priority-high-text);
+}
+
+/* Notes */
+
+.task__notes {
+  flex: 1 0 100%;
+  order: 3;
+  margin: 0.15rem 0 0 3.1rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.task__action--notes {
+  font-size: 0.75rem;
+  padding: 0.4rem 0.55rem;
 }
 
 .task__actions {
@@ -454,6 +620,14 @@ body {
   background: var(--surface-muted);
 }
 
+.task--editing .task__edit-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
 .task__edit-input {
   flex: 1;
   min-width: 0;
@@ -483,6 +657,40 @@ body {
 }
 
 .task__edit-priority:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.task__edit-due {
+  padding: 0.45rem 0.55rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.task__edit-due:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.task__edit-notes {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.task__edit-notes:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: var(--focus-ring);
@@ -658,9 +866,24 @@ body {
 
 /* ---------- Responsive ---------- */
 
+@media (max-width: 40rem) {
+  .task-form__row {
+    flex-wrap: wrap;
+  }
+
+  .task-form__input {
+    flex: 1 1 100%;
+  }
+
+  .task-form__submit {
+    flex: 1;
+  }
+}
+
 @media (max-width: 30rem) {
-  .task-form {
+  .task-form__details {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .task-form__submit {
@@ -672,6 +895,21 @@ body {
     padding: 0.5rem 0.35rem;
   }
 
+  .task {
+    flex-wrap: wrap;
+  }
+
+  .task__label {
+    flex: 1 1 100%;
+  }
+
+  .task__actions {
+    margin-left: auto;
+  }
+
+  .task__notes {
+    margin-left: 0;
+  }
   .toast {
     bottom: 1rem;
     width: calc(100vw - 2rem);

@@ -249,8 +249,8 @@ body {
 }
 
 .task-form__input {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: 12rem;
   padding: 0.75rem 0.9rem;
   font-size: 1rem;
   font-family: inherit;
@@ -385,6 +385,53 @@ body {
   gap: 0.4rem;
 }
 
+.sortable-task {
+  list-style: none;
+}
+
+.sortable-task--dragging {
+  position: relative;
+  z-index: 10;
+  opacity: 0.85;
+}
+
+.sortable-task--dragging .task {
+  box-shadow: var(--shadow);
+  border-color: var(--primary);
+  cursor: grabbing;
+}
+
+.task__drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.15rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.task__drag-handle:hover {
+  opacity: 1;
+  color: var(--primary);
+}
+
+.task__drag-handle:active {
+  cursor: grabbing;
+}
+
+.task__drag-handle:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: var(--focus-ring);
+}
+
 .task {
   display: flex;
   flex-wrap: wrap;
@@ -415,12 +462,19 @@ body {
 }
 
 .task__label {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   cursor: pointer;
+}
+
+.task__badges {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .task__checkbox {
@@ -458,7 +512,6 @@ body {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-
 .task--completed .task__title {
   color: var(--text-muted);
   text-decoration: line-through;
@@ -897,10 +950,20 @@ body {
 
   .task {
     flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
+  /* Keep the drag handle beside the checkbox instead of on its own line */
   .task__label {
-    flex: 1 1 100%;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /* Badges drop below the title so the title keeps the full width */
+  .task__badges {
+    flex: 1 0 100%;
+    order: 3;
+    margin-left: 3.1rem;
   }
 
   .task__actions {

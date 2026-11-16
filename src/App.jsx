@@ -5,15 +5,15 @@ import { TaskList } from './components/TaskList.jsx'
 import { UndoToast } from './components/UndoToast.jsx'
 import { useLocalStorage } from './hooks/useLocalStorage.js'
 import { useToday } from './hooks/useToday.js'
-import { FILTERS, PRIORITIES, countTasks, createTask, filterTasks } from './utils/tasks.js'
+import { FILTERS, PRIORITIES, countTasks, createTask, filterTasks, reorderTasks, setTaskCompleted } from './utils/tasks.js'
 import { isOverdue } from './utils/dates.js'
 
 const STORAGE_KEY = 'to-do-react-apps:tasks'
 
 const DEMO_TASKS = [
-  { id: 'demo-1', title: 'Read the project README', priority: PRIORITIES.low, notes: '', dueDate: '', completed: true, createdAt: 3 },
-  { id: 'demo-2', title: 'Add a new task using the form above', priority: PRIORITIES.medium, notes: 'Try the "Add details" button to attach a note or a due date.', dueDate: '', completed: false, createdAt: 2 },
-  { id: 'demo-3', title: 'Tick a task to mark it as done', priority: PRIORITIES.high, notes: '', dueDate: '', completed: false, createdAt: 1 },
+  { id: 'demo-3', title: 'Tick a task to mark it as done', priority: PRIORITIES.high, notes: '', dueDate: '', completed: false, completedAt: null, createdAt: 1 },
+  { id: 'demo-2', title: 'Add a new task using the form above', priority: PRIORITIES.medium, notes: 'Try the "Add details" button to attach a note or a due date.', dueDate: '', completed: false, completedAt: null, createdAt: 2 },
+  { id: 'demo-1', title: 'Read the project README', priority: PRIORITIES.low, notes: '', dueDate: '', completed: true, completedAt: 3, createdAt: 3 },
 ]
 
 export default function App() {
@@ -50,9 +50,11 @@ export default function App() {
 
   const toggleTask = useCallback(
     (id) => {
-      setTasks((current) =>
-        current.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task)),
-      )
+      setTasks((current) => {
+        const task = current.find((item) => item.id === id)
+        if (!task) return current
+        return setTaskCompleted(current, id, !task.completed)
+      })
     },
     [setTasks],
   )
@@ -122,6 +124,13 @@ export default function App() {
     setUndoState(null)
   }, [clearUndoTimer])
 
+  const handleReorder = useCallback(
+    (visibleIds, fromIndex, toIndex) => {
+      setTasks((current) => reorderTasks(current, visibleIds, fromIndex, toIndex))
+    },
+    [setTasks],
+  )
+
   const counts = useMemo(() => countTasks(tasks), [tasks])
   const overdueCount = useMemo(
     () => tasks.filter((task) => isOverdue(task, today)).length,
@@ -156,6 +165,7 @@ export default function App() {
           onToggle={toggleTask}
           onRemove={removeTask}
           onUpdate={updateTask}
+          onReorder={handleReorder}
           today={today}
         />
 

@@ -15,6 +15,8 @@ A simple, fast, and accessible to-do list built with React and Vite.
 - **Delete** a task with the trash icon
 - **Filter** by All / Active / Completed
 - **Clear completed** in one click (with Undo support)
+- **Reorder completed tasks** — completing a task automatically sinks it to the bottom of the list; reopening it lifts it back into the active section
+- **Manual reordering** — drag tasks by the grip handle to set your own order, or use the keyboard (`Space` to pick up, arrow keys to move, `Space` to drop)
 - **Persists** your tasks in `localStorage`, so they survive a refresh
 - **Responsive** layout with automatic light and dark themes
 - **Accessible**: semantic HTML, labelled controls, visible focus rings, keyboard operable
@@ -54,19 +56,22 @@ src/
 │   ├── Icon.jsx               # Inline SVG icons
 │   ├── TaskForm.jsx           # Add-task form with priority, due date and notes
 │   ├── TaskItem.jsx           # A single task row with badges, notes & edit mode
-│   ├── TaskList.jsx           # Task list and empty state
+│   ├── SortableTaskItem.jsx   # Wraps a task row with drag-and-drop behaviour
+│   ├── TaskList.jsx           # Task list, empty state and drag-and-drop context
 │   ├── TaskFilters.jsx        # All / Active / Completed filter buttons
 │   └── UndoToast.jsx          # Accessible floating toast with Undo action
 ├── hooks/
 │   ├── useLocalStorage.js     # State hook backed by localStorage
 │   └── useToday.js            # Keeps "today" accurate across midnight
 ├── utils/
-│   ├── tasks.js               # Task factory, priority constants, filtering and counting helpers
+│   ├── tasks.js               # Task factory, priority constants, filtering, counting,
+│   │                          # completed-task partitioning and reordering helpers
 │   └── dates.js               # Due date formatting and overdue detection helpers
 └── test/
     ├── setup.js
-    ├── App.test.jsx           # Behavioural tests (26 tests)
-    └── dates.test.js          # Date utility unit tests (8 tests)
+    ├── App.test.jsx           # Behavioural tests (30 tests)
+    ├── dates.test.js          # Date utility unit tests (8 tests)
+    └── reorder.test.js        # Reordering & partitioning unit tests (14 tests)
 ```
 
 ## How it works
@@ -83,3 +88,10 @@ Due dates are stored as plain `YYYY-MM-DD` strings, which sort lexicographically
 overdue detection is a simple string comparison against today. The `useToday` hook
 recomputes the current date just after midnight so the overdue state never goes stale
 if the app is left open overnight.
+
+Task order is stored on the task list itself. `partitionTasks` keeps active tasks
+above completed ones while preserving the order within each group, `setTaskCompleted`
+sinks a task when it is completed and lifts it back when reopened, and `reorderTasks`
+applies a drag to the visible subset of tasks without disturbing filtered-out ones.
+Drag and drop is handled by [dnd-kit](https://dndkit.com), which supports both mouse
+and keyboard interaction (`Space` to pick up, arrow keys to move, `Space` to drop).

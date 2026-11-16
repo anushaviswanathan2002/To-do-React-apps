@@ -6,9 +6,12 @@ A simple, fast, and accessible to-do list built with React and Vite.
 
 - **Add** tasks with priority level (`Low`, `Medium`, `High`) via the form
 - **Priority badges** colour-coded for quick visual triage (green for Low, amber for Medium, red for High)
+- **Task descriptions / notes** — attach a longer description to any task, collapsed by default and expanded via a `Notes` button
+- **Due dates** with a date picker, shown as a badge (`Today`, `Tomorrow`, `15 Mar 2025`)
+- **Overdue highlighting** — overdue tasks get a red-tinted row, an `Overdue` badge, and a summary count under the title
 - **Undo delete** toast notification allowing one-click restore after deleting a task or clearing completed tasks
 - **Complete** tasks by ticking the checkbox
-- **Edit** a task inline (title and priority) — `Enter` saves, `Escape` cancels
+- **Edit** a task inline (title, priority, due date, notes) — `Enter` saves, `Escape` cancels
 - **Delete** a task with the trash icon
 - **Filter** by All / Active / Completed
 - **Clear completed** in one click (with Undo support)
@@ -46,21 +49,24 @@ npm run dev
 src/
 ├── App.jsx                    # Root component — owns task state, undo logic, and actions
 ├── main.jsx                   # React entry point
-├── styles.css                 # All styling (light + dark themes, priority badges, toast)
+├── styles.css                 # All styling (light + dark themes, badges, notes, toast)
 ├── components/
 │   ├── Icon.jsx               # Inline SVG icons
-│   ├── TaskForm.jsx           # Add-task form with priority selector
-│   ├── TaskItem.jsx           # A single task row with priority badge & edit mode
+│   ├── TaskForm.jsx           # Add-task form with priority, due date and notes
+│   ├── TaskItem.jsx           # A single task row with badges, notes & edit mode
 │   ├── TaskList.jsx           # Task list and empty state
 │   ├── TaskFilters.jsx        # All / Active / Completed filter buttons
 │   └── UndoToast.jsx          # Accessible floating toast with Undo action
 ├── hooks/
-│   └── useLocalStorage.js     # State hook backed by localStorage
+│   ├── useLocalStorage.js     # State hook backed by localStorage
+│   └── useToday.js            # Keeps "today" accurate across midnight
 ├── utils/
-│   └── tasks.js               # Task factory, priority constants, filtering and counting helpers
+│   ├── tasks.js               # Task factory, priority constants, filtering and counting helpers
+│   └── dates.js               # Due date formatting and overdue detection helpers
 └── test/
     ├── setup.js
-    └── App.test.jsx           # Behavioural tests (16 tests)
+    ├── App.test.jsx           # Behavioural tests (26 tests)
+    └── dates.test.js          # Date utility unit tests (8 tests)
 ```
 
 ## How it works
@@ -72,3 +78,8 @@ When a task or group of tasks is deleted, a temporary undo state is captured and
 displayed in an accessible floating toast notification (`UndoToast`), auto-dismissed after 6 seconds.
 `filterTasks` derives the visible rows from the selected filter, and `countTasks`
 produces the numbers shown on the filter buttons and in the footer.
+
+Due dates are stored as plain `YYYY-MM-DD` strings, which sort lexicographically, so
+overdue detection is a simple string comparison against today. The `useToday` hook
+recomputes the current date just after midnight so the overdue state never goes stale
+if the app is left open overnight.

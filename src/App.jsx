@@ -4,14 +4,16 @@ import { TaskForm } from './components/TaskForm.jsx'
 import { TaskList } from './components/TaskList.jsx'
 import { UndoToast } from './components/UndoToast.jsx'
 import { useLocalStorage } from './hooks/useLocalStorage.js'
+import { useToday } from './hooks/useToday.js'
 import { FILTERS, PRIORITIES, countTasks, createTask, filterTasks } from './utils/tasks.js'
+import { isOverdue } from './utils/dates.js'
 
 const STORAGE_KEY = 'to-do-react-apps:tasks'
 
 const DEMO_TASKS = [
-  { id: 'demo-1', title: 'Read the project README', priority: PRIORITIES.low, completed: true, createdAt: 3 },
-  { id: 'demo-2', title: 'Add a new task using the form above', priority: PRIORITIES.medium, completed: false, createdAt: 2 },
-  { id: 'demo-3', title: 'Tick a task to mark it as done', priority: PRIORITIES.high, completed: false, createdAt: 1 },
+  { id: 'demo-1', title: 'Read the project README', priority: PRIORITIES.low, notes: '', dueDate: '', completed: true, createdAt: 3 },
+  { id: 'demo-2', title: 'Add a new task using the form above', priority: PRIORITIES.medium, notes: 'Try the "Add details" button to attach a note or a due date.', dueDate: '', completed: false, createdAt: 2 },
+  { id: 'demo-3', title: 'Tick a task to mark it as done', priority: PRIORITIES.high, notes: '', dueDate: '', completed: false, createdAt: 1 },
 ]
 
 export default function App() {
@@ -19,6 +21,7 @@ export default function App() {
   const [filter, setFilter] = useState(FILTERS.all)
   const [undoState, setUndoState] = useState(null)
   const undoTimerRef = useRef(null)
+  const today = useToday()
 
   const clearUndoTimer = useCallback(() => {
     if (undoTimerRef.current) {
@@ -39,8 +42,8 @@ export default function App() {
   }, [clearUndoTimer])
 
   const addTask = useCallback(
-    (title, priority) => {
-      setTasks((current) => [createTask(title, priority), ...current])
+    (title, options) => {
+      setTasks((current) => [createTask(title, options), ...current])
     },
     [setTasks],
   )
@@ -120,6 +123,10 @@ export default function App() {
   }, [clearUndoTimer])
 
   const counts = useMemo(() => countTasks(tasks), [tasks])
+  const overdueCount = useMemo(
+    () => tasks.filter((task) => isOverdue(task, today)).length,
+    [tasks, today],
+  )
   const visibleTasks = useMemo(() => filterTasks(tasks, filter), [tasks, filter])
 
   return (
@@ -131,6 +138,11 @@ export default function App() {
             ? 'All caught up — nothing left to do.'
             : `${counts.active} task${counts.active === 1 ? '' : 's'} left to do.`}
         </p>
+        {overdueCount > 0 && (
+          <p className="app__overdue">
+            {overdueCount} task{overdueCount === 1 ? '' : 's'} overdue
+          </p>
+        )}
       </header>
 
       <section className="app__panel" aria-label="To-do list">
@@ -144,6 +156,7 @@ export default function App() {
           onToggle={toggleTask}
           onRemove={removeTask}
           onUpdate={updateTask}
+          today={today}
         />
 
         <footer className="app__footer">

@@ -1,6 +1,6 @@
 import { TaskItem } from './TaskItem.jsx'
 
-export function TaskList({ tasks, onToggle, onRemove, onUpdate, filter }) {
+export function TaskList({ tasks, onToggle, onRemove, onUpdate, filter, today }) {
   if (tasks.length === 0) {
     const message =
       filter === 'completed'
@@ -28,6 +28,7 @@ export function TaskList({ tasks, onToggle, onRemove, onUpdate, filter }) {
           onToggle={onToggle}
           onRemove={onRemove}
           onUpdate={onUpdate}
+          today={today}
         />
       ))}
     </ul>

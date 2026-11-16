@@ -10,6 +10,18 @@ export const FILTERS_LIST = [
   { value: FILTERS.completed, label: 'Completed' },
 ]
 
+export const PRIORITIES = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+}
+
+export const PRIORITIES_LIST = [
+  { value: PRIORITIES.low, label: 'Low' },
+  { value: PRIORITIES.medium, label: 'Medium' },
+  { value: PRIORITIES.high, label: 'High' },
+]
+
 export function createId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -17,10 +29,12 @@ export function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-export function createTask(title) {
+export function createTask(title, priority = PRIORITIES.medium) {
+  const validPriority = PRIORITIES[priority] ? priority : PRIORITIES.medium
   return {
     id: createId(),
     title: title.trim(),
+    priority: validPriority,
     completed: false,
     createdAt: Date.now(),
   }

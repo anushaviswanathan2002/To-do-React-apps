@@ -1,6 +1,6 @@
 import { TaskItem } from './TaskItem.jsx'
 
-export function TaskList({ tasks, onToggle, onRemove, onRename, filter }) {
+export function TaskList({ tasks, onToggle, onRemove, onUpdate, filter }) {
   if (tasks.length === 0) {
     const message =
       filter === 'completed'
@@ -27,7 +27,7 @@ export function TaskList({ tasks, onToggle, onRemove, onRename, filter }) {
           task={task}
           onToggle={onToggle}
           onRemove={onRemove}
-          onRename={onRename}
+          onUpdate={onUpdate}
         />
       ))}
     </ul>

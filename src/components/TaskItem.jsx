@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { CheckIcon, PencilIcon, TrashIcon } from './Icon.jsx'
+import { PRIORITIES, PRIORITIES_LIST } from '../utils/tasks.js'
 
-export function TaskItem({ task, onToggle, onRemove, onRename }) {
+export function TaskItem({ task, onToggle, onRemove, onUpdate }) {
   const [isEditing, setIsEditing] = useState(false)
-  const [draft, setDraft] = useState(task.title)
+  const [draftTitle, setDraftTitle] = useState(task.title)
+  const [draftPriority, setDraftPriority] = useState(task.priority || PRIORITIES.medium)
   const inputRef = useRef(null)
   const isEditingRef = useRef(false)
+  const formRef = useRef(null)
 
   useEffect(() => {
     if (isEditing) {
@@ -16,23 +19,26 @@ export function TaskItem({ task, onToggle, onRemove, onRename }) {
 
   function startEditing() {
     isEditingRef.current = true
-    setDraft(task.title)
+    setDraftTitle(task.title)
+    setDraftPriority(task.priority || PRIORITIES.medium)
     setIsEditing(true)
   }
 
-  // Whichever of save/cancel/blur fires first wins; the rest become no-ops.
   function saveEditing() {
     if (!isEditingRef.current) return
     isEditingRef.current = false
-    const title = draft.trim()
-    if (title) onRename(task.id, title)
+    const title = draftTitle.trim()
+    if (title) {
+      onUpdate(task.id, { title, priority: draftPriority })
+    }
     setIsEditing(false)
   }
 
   function cancelEditing() {
     if (!isEditingRef.current) return
     isEditingRef.current = false
-    setDraft(task.title)
+    setDraftTitle(task.title)
+    setDraftPriority(task.priority || PRIORITIES.medium)
     setIsEditing(false)
   }
 
@@ -47,24 +53,45 @@ export function TaskItem({ task, onToggle, onRemove, onRename }) {
     }
   }
 
+  function handleBlur(event) {
+    // Only save on blur if focus left the entire edit container
+    if (formRef.current && !formRef.current.contains(event.relatedTarget)) {
+      saveEditing()
+    }
+  }
+
+  const priority = task.priority || PRIORITIES.medium
+
   if (isEditing) {
     return (
-      <li className="task task--editing">
+      <li className="task task--editing" ref={formRef} onBlur={handleBlur}>
         <input
           ref={inputRef}
           className="task__edit-input"
           type="text"
-          value={draft}
+          value={draftTitle}
           aria-label={`Edit task: ${task.title}`}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => setDraftTitle(event.target.value)}
           onKeyDown={handleKeyDown}
-          onBlur={saveEditing}
         />
+        <select
+          className="task__edit-priority"
+          value={draftPriority}
+          onChange={(event) => setDraftPriority(event.target.value)}
+          aria-label="Change priority"
+          onKeyDown={handleKeyDown}
+        >
+          {PRIORITIES_LIST.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
         <button
           className="task__action task__action--save"
           type="button"
           aria-label="Save task"
-          onMouseDown={saveEditing}
+          onClick={saveEditing}
         >
           <CheckIcon />
         </button>
@@ -72,7 +99,7 @@ export function TaskItem({ task, onToggle, onRemove, onRename }) {
           className="task__action"
           type="button"
           aria-label="Cancel editing"
-          onMouseDown={cancelEditing}
+          onClick={cancelEditing}
         >
           Cancel
         </button>
@@ -93,6 +120,9 @@ export function TaskItem({ task, onToggle, onRemove, onRename }) {
           <CheckIcon />
         </span>
         <span className="task__title">{task.title}</span>
+        <span className={`task__priority-badge task__priority-badge--${priority}`}>
+          {priority}
+        </span>
       </label>
 
       <div className="task__actions">

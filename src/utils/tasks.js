@@ -22,6 +22,20 @@ export const PRIORITIES_LIST = [
   { value: PRIORITIES.high, label: 'High' },
 ]
 
+export const PRIORITY_FILTERS = {
+  all: 'all',
+  low: PRIORITIES.low,
+  medium: PRIORITIES.medium,
+  high: PRIORITIES.high,
+}
+
+export const PRIORITY_FILTERS_LIST = [
+  { value: PRIORITY_FILTERS.all, label: 'All priorities' },
+  { value: PRIORITY_FILTERS.low, label: 'Low' },
+  { value: PRIORITY_FILTERS.medium, label: 'Medium' },
+  { value: PRIORITY_FILTERS.high, label: 'High' },
+]
+
 export function createId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -48,6 +62,21 @@ export function filterTasks(tasks, filter) {
   if (filter === FILTERS.active) return tasks.filter((task) => !task.completed)
   if (filter === FILTERS.completed) return tasks.filter((task) => task.completed)
   return tasks
+}
+
+export function filterTasksByPriority(tasks, priorityFilter) {
+  if (!priorityFilter || priorityFilter === PRIORITY_FILTERS.all) return tasks
+  return tasks.filter((task) => (task.priority || PRIORITIES.medium) === priorityFilter)
+}
+
+export function countByPriority(tasks) {
+  return {
+    all: tasks.length,
+    low: tasks.filter((task) => (task.priority || PRIORITIES.medium) === PRIORITIES.low).length,
+    medium: tasks.filter((task) => (task.priority || PRIORITIES.medium) === PRIORITIES.medium)
+      .length,
+    high: tasks.filter((task) => (task.priority || PRIORITIES.medium) === PRIORITIES.high).length,
+  }
 }
 
 export function countTasks(tasks) {

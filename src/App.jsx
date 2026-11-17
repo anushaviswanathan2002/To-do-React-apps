@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TaskFilters } from './components/TaskFilters.jsx'
+import { PriorityFilters } from './components/PriorityFilters.jsx'
 import { TaskForm } from './components/TaskForm.jsx'
 import { TaskList } from './components/TaskList.jsx'
 import { UndoToast } from './components/UndoToast.jsx'
 import { useLocalStorage } from './hooks/useLocalStorage.js'
 import { useToday } from './hooks/useToday.js'
-import { FILTERS, PRIORITIES, countTasks, createTask, filterTasks, reorderTasks, setTaskCompleted } from './utils/tasks.js'
+import {
+  FILTERS,
+  PRIORITY_FILTERS,
+  PRIORITIES,
+  countByPriority,
+  countTasks,
+  createTask,
+  filterTasks,
+  filterTasksByPriority,
+  reorderTasks,
+  setTaskCompleted,
+} from './utils/tasks.js'
 import { isOverdue } from './utils/dates.js'
 
 const STORAGE_KEY = 'to-do-react-apps:tasks'
@@ -19,6 +31,7 @@ const DEMO_TASKS = [
 export default function App() {
   const [tasks, setTasks] = useLocalStorage(STORAGE_KEY, DEMO_TASKS)
   const [filter, setFilter] = useState(FILTERS.all)
+  const [priorityFilter, setPriorityFilter] = useState(PRIORITY_FILTERS.all)
   const [undoState, setUndoState] = useState(null)
   const undoTimerRef = useRef(null)
   const today = useToday()
@@ -132,11 +145,15 @@ export default function App() {
   )
 
   const counts = useMemo(() => countTasks(tasks), [tasks])
+  const priorityCounts = useMemo(() => countByPriority(tasks), [tasks])
   const overdueCount = useMemo(
     () => tasks.filter((task) => isOverdue(task, today)).length,
     [tasks, today],
   )
-  const visibleTasks = useMemo(() => filterTasks(tasks, filter), [tasks, filter])
+  const visibleTasks = useMemo(
+    () => filterTasksByPriority(filterTasks(tasks, filter), priorityFilter),
+    [tasks, filter, priorityFilter],
+  )
 
   return (
     <main className="app">
@@ -158,6 +175,8 @@ export default function App() {
         <TaskForm onAdd={addTask} />
 
         <TaskFilters current={filter} counts={counts} onChange={setFilter} />
+
+        <PriorityFilters current={priorityFilter} counts={priorityCounts} onChange={setPriorityFilter} />
 
         <TaskList
           tasks={visibleTasks}

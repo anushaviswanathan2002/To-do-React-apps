@@ -453,3 +453,71 @@ describe('Reordering', () => {
     expect(screen.getAllByRole('button', { name: /^Reorder task:/ })).toHaveLength(3)
   })
 })
+
+describe('Priority filters', () => {
+  function renderedTitles() {
+    return Array.from(document.querySelectorAll('.task__title')).map((node) => node.textContent)
+  }
+
+  it('shows counts for each priority', () => {
+    render(<App />)
+    // Demo tasks: one high, one medium, one low.
+    expect(screen.getByRole('button', { name: /high priority tasks/ })).toHaveTextContent('1')
+    expect(screen.getByRole('button', { name: /medium priority tasks/ })).toHaveTextContent('1')
+    expect(screen.getByRole('button', { name: /low priority tasks/ })).toHaveTextContent('1')
+  })
+
+  it('shows only high priority tasks when the high filter is selected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /high priority tasks/ }))
+
+    expect(renderedTitles()).toEqual(['Tick a task to mark it as done'])
+  })
+
+  it('shows only low priority tasks when the low filter is selected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /low priority tasks/ }))
+
+    expect(renderedTitles()).toEqual(['Read the project README'])
+  })
+
+  it('restores the full list when the all priorities filter is selected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /high priority tasks/ }))
+    expect(renderedTitles()).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: /tasks of any priority/ }))
+    expect(renderedTitles()).toHaveLength(3)
+  })
+
+  it('combines the priority filter with the status filter', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // High priority + Active -> the one high priority, non-completed task
+    await user.click(screen.getByRole('button', { name: /high priority tasks/ }))
+    await user.click(screen.getByRole('button', { name: /active tasks/ }))
+    expect(renderedTitles()).toEqual(['Tick a task to mark it as done'])
+
+    // High priority + Completed -> nothing matches
+    await user.click(screen.getByRole('button', { name: /completed tasks/ }))
+    expect(renderedTitles()).toEqual([])
+  })
+
+  it('shows an empty state when no task matches the combined filters', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /high priority tasks/ }))
+    await user.click(screen.getByRole('button', { name: /completed tasks/ }))
+
+    const list = document.querySelector('.app__panel')
+    expect(within(list).getByText('No completed tasks yet.')).toBeInTheDocument()
+  })
+})

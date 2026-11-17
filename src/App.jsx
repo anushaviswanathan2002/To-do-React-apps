@@ -1,24 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TaskFilters } from './components/TaskFilters.jsx'
+import { PriorityFilters } from './components/PriorityFilters.jsx'
 import { TaskForm } from './components/TaskForm.jsx'
 import { TaskList } from './components/TaskList.jsx'
 import { UndoToast } from './components/UndoToast.jsx'
 import { useLocalStorage } from './hooks/useLocalStorage.js'
 import { useToday } from './hooks/useToday.js'
-import { FILTERS, PRIORITIES, countTasks, createTask, filterTasks } from './utils/tasks.js'
+import {
+  FILTERS,
+  PRIORITY_FILTERS,
+  PRIORITIES,
+  countByPriority,
+  countTasks,
+  createTask,
+  filterTasks,
+  filterTasksByPriority,
+  reorderTasks,
+  setTaskCompleted,
+} from './utils/tasks.js'
 import { isOverdue } from './utils/dates.js'
 
 const STORAGE_KEY = 'to-do-react-apps:tasks'
 
 const DEMO_TASKS = [
-  { id: 'demo-1', title: 'Read the project README', priority: PRIORITIES.low, notes: '', dueDate: '', completed: true, createdAt: 3 },
-  { id: 'demo-2', title: 'Add a new task using the form above', priority: PRIORITIES.medium, notes: 'Try the "Add details" button to attach a note or a due date.', dueDate: '', completed: false, createdAt: 2 },
-  { id: 'demo-3', title: 'Tick a task to mark it as done', priority: PRIORITIES.high, notes: '', dueDate: '', completed: false, createdAt: 1 },
+  { id: 'demo-3', title: 'Tick a task to mark it as done', priority: PRIORITIES.high, notes: '', dueDate: '', completed: false, completedAt: null, createdAt: 1 },
+  { id: 'demo-2', title: 'Add a new task using the form above', priority: PRIORITIES.medium, notes: 'Try the "Add details" button to attach a note or a due date.', dueDate: '', completed: false, completedAt: null, createdAt: 2 },
+  { id: 'demo-1', title: 'Read the project README', priority: PRIORITIES.low, notes: '', dueDate: '', completed: true, completedAt: 3, createdAt: 3 },
 ]
 
 export default function App() {
   const [tasks, setTasks] = useLocalStorage(STORAGE_KEY, DEMO_TASKS)
   const [filter, setFilter] = useState(FILTERS.all)
+  const [priorityFilter, setPriorityFilter] = useState(PRIORITY_FILTERS.all)
   const [undoState, setUndoState] = useState(null)
   const undoTimerRef = useRef(null)
   const today = useToday()
@@ -50,9 +63,11 @@ export default function App() {
 
   const toggleTask = useCallback(
     (id) => {
-      setTasks((current) =>
-        current.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task)),
-      )
+      setTasks((current) => {
+        const task = current.find((item) => item.id === id)
+        if (!task) return current
+        return setTaskCompleted(current, id, !task.completed)
+      })
     },
     [setTasks],
   )
@@ -122,12 +137,23 @@ export default function App() {
     setUndoState(null)
   }, [clearUndoTimer])
 
+  const handleReorder = useCallback(
+    (visibleIds, fromIndex, toIndex) => {
+      setTasks((current) => reorderTasks(current, visibleIds, fromIndex, toIndex))
+    },
+    [setTasks],
+  )
+
   const counts = useMemo(() => countTasks(tasks), [tasks])
+  const priorityCounts = useMemo(() => countByPriority(tasks), [tasks])
   const overdueCount = useMemo(
     () => tasks.filter((task) => isOverdue(task, today)).length,
     [tasks, today],
   )
-  const visibleTasks = useMemo(() => filterTasks(tasks, filter), [tasks, filter])
+  const visibleTasks = useMemo(
+    () => filterTasksByPriority(filterTasks(tasks, filter), priorityFilter),
+    [tasks, filter, priorityFilter],
+  )
 
   return (
     <main className="app">
@@ -150,12 +176,15 @@ export default function App() {
 
         <TaskFilters current={filter} counts={counts} onChange={setFilter} />
 
+        <PriorityFilters current={priorityFilter} counts={priorityCounts} onChange={setPriorityFilter} />
+
         <TaskList
           tasks={visibleTasks}
           filter={filter}
           onToggle={toggleTask}
           onRemove={removeTask}
           onUpdate={updateTask}
+          onReorder={handleReorder}
           today={today}
         />
 

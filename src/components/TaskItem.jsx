@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { CheckIcon, PencilIcon, TrashIcon } from './Icon.jsx'
+import { CheckIcon, GripIcon, PencilIcon, TrashIcon } from './Icon.jsx'
 import { PRIORITIES, PRIORITIES_LIST } from '../utils/tasks.js'
 import { formatDueDate, isDueToday, isOverdue } from '../utils/dates.js'
 
-export function TaskItem({ task, onToggle, onRemove, onUpdate, today }) {
+export function TaskItem({ task, onToggle, onRemove, onUpdate, today, dragHandleProps }) {
   const [isEditing, setIsEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(task.title)
   const [draftPriority, setDraftPriority] = useState(task.priority || PRIORITIES.medium)
@@ -80,7 +80,7 @@ export function TaskItem({ task, onToggle, onRemove, onUpdate, today }) {
 
   if (isEditing) {
     return (
-      <li className="task task--editing" ref={formRef} onBlur={handleBlur}>
+      <div className="task task--editing" ref={formRef} onBlur={handleBlur}>
         <div className="task__edit-fields">
           <input
             ref={inputRef}
@@ -140,14 +140,24 @@ export function TaskItem({ task, onToggle, onRemove, onUpdate, today }) {
             Cancel
           </button>
         </div>
-      </li>
+      </div>
     )
   }
 
   const dueLabel = task.dueDate ? formatDueDate(task.dueDate, today) : ''
 
   return (
-    <li className={`task${task.completed ? ' task--completed' : ''}${overdue ? ' task--overdue' : ''}`}>
+    <div className={`task${task.completed ? ' task--completed' : ''}${overdue ? ' task--overdue' : ''}`}>
+      {dragHandleProps && (
+        <button
+          type="button"
+          className="task__drag-handle"
+          aria-label={`Reorder task: ${task.title}`}
+          {...dragHandleProps}
+        >
+          <GripIcon />
+        </button>
+      )}
       <label className="task__label">
         <input
           className="task__checkbox"
@@ -159,6 +169,9 @@ export function TaskItem({ task, onToggle, onRemove, onUpdate, today }) {
           <CheckIcon />
         </span>
         <span className="task__title">{task.title}</span>
+      </label>
+
+      <div className="task__badges">
         {task.dueDate && (
           <span
             className={`task__due${overdue ? ' task__due--overdue' : ''}${dueToday ? ' task__due--today' : ''}`}
@@ -169,7 +182,7 @@ export function TaskItem({ task, onToggle, onRemove, onUpdate, today }) {
         <span className={`task__priority-badge task__priority-badge--${priority}`}>
           {priority}
         </span>
-      </label>
+      </div>
 
       <div className="task__actions">
         {notes && (
@@ -202,6 +215,6 @@ export function TaskItem({ task, onToggle, onRemove, onUpdate, today }) {
       </div>
 
       {notes && showNotes && <p className="task__notes">{notes}</p>}
-    </li>
+    </div>
   )
 }

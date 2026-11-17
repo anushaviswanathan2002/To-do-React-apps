@@ -81,7 +81,7 @@ describe('To-do app', () => {
     expect(screen.getByText(/2 items total/)).toBeInTheDocument()
 
     // Undo toast should appear
-    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(document.querySelector('.toast')).toBeInTheDocument()
     expect(screen.getByText('Deleted "Read the project README"')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
   })
@@ -97,7 +97,7 @@ describe('To-do app', () => {
 
     expect(screen.getByText('Read the project README')).toBeInTheDocument()
     expect(screen.getByText(/3 items total/)).toBeInTheDocument()
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(document.querySelector('.toast')).not.toBeInTheDocument()
   })
 
   it('dismisses the undo toast when clicking close', async () => {
@@ -105,10 +105,10 @@ describe('To-do app', () => {
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Delete task: Read the project README' }))
-    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(document.querySelector('.toast')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Dismiss notification' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(document.querySelector('.toast')).not.toBeInTheDocument()
   })
 
   it('restores multiple cleared tasks when clicking Undo', async () => {
@@ -331,7 +331,7 @@ describe('Due dates and overdue highlighting', () => {
     await user.type(screen.getByLabelText('Due date'), '2020-01-01')
     await user.click(screen.getByRole('button', { name: 'Add task' }))
 
-    const item = screen.getByText('Overdue task').closest('li')
+    const item = screen.getByText('Overdue task').closest('.task')
     expect(item).toHaveClass('task--overdue')
     expect(within(item).getByText('Overdue')).toBeInTheDocument()
     expect(screen.getByText(/1 task overdue/)).toBeInTheDocument()
@@ -348,7 +348,7 @@ describe('Due dates and overdue highlighting', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /Done in time/ }))
 
-    const item = screen.getByText('Done in time').closest('li')
+    const item = screen.getByText('Done in time').closest('.task')
     expect(item).not.toHaveClass('task--overdue')
     expect(screen.queryByText(/task overdue/)).not.toBeInTheDocument()
   })
@@ -396,5 +396,128 @@ describe('Due dates and overdue highlighting', () => {
 
     const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
     expect(stored[0].dueDate).toBe('2099-12-25')
+  })
+})
+
+describe('Reordering', () => {
+  function renderedTitles() {
+    return Array.from(document.querySelectorAll('.task__title')).map((node) => node.textContent)
+  }
+
+  it('moves a completed task to the bottom of the list', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // Active tasks come first; the already-completed demo task sits last.
+    expect(renderedTitles()[0]).toBe('Tick a task to mark it as done')
+    expect(renderedTitles()[2]).toBe('Read the project README')
+
+    await user.click(screen.getByRole('checkbox', { name: /Tick a task to mark it as done/ }))
+
+    const titles = renderedTitles()
+    expect(titles[titles.length - 1]).toBe('Tick a task to mark it as done')
+    expect(titles[titles.length - 2]).toBe('Read the project README')
+  })
+
+  it('moves a reopened task back into the active section', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('checkbox', { name: /Tick a task to mark it as done/ }))
+    expect(renderedTitles()[renderedTitles().length - 1]).toBe('Tick a task to mark it as done')
+
+    await user.click(screen.getByRole('checkbox', { name: /Tick a task to mark it as done/ }))
+
+    const titles = renderedTitles()
+    expect(titles[titles.length - 1]).toBe('Read the project README')
+    expect(titles.indexOf('Tick a task to mark it as done')).toBeLessThan(
+      titles.indexOf('Read the project README'),
+    )
+  })
+
+  it('keeps completed tasks at the bottom of the stored list', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('checkbox', { name: /Tick a task to mark it as done/ }))
+
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
+    const lastTask = stored[stored.length - 1]
+    expect(lastTask.title).toBe('Tick a task to mark it as done')
+    expect(lastTask.completed).toBe(true)
+    expect(lastTask.completedAt).toBeTypeOf('number')
+  })
+
+  it('renders a drag handle for each task', () => {
+    render(<App />)
+    expect(screen.getAllByRole('button', { name: /^Reorder task:/ })).toHaveLength(3)
+  })
+})
+
+describe('Priority filters', () => {
+  function renderedTitles() {
+    return Array.from(document.querySelectorAll('.task__title')).map((node) => node.textContent)
+  }
+
+  it('shows counts for each priority', () => {
+    render(<App />)
+    // Demo tasks: one high, one medium, one low.
+    expect(screen.getByRole('button', { name: /high priority tasks/ })).toHaveTextContent('1')
+    expect(screen.getByRole('button', { name: /medium priority tasks/ })).toHaveTextContent('1')
+    expect(screen.getByRole('button', { name: /low priority tasks/ })).toHaveTextContent('1')
+  })
+
+  it('shows only high priority tasks when the high filter is selected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /high priority tasks/ }))
+
+    expect(renderedTitles()).toEqual(['Tick a task to mark it as done'])
+  })
+
+  it('shows only low priority tasks when the low filter is selected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /low priority tasks/ }))
+
+    expect(renderedTitles()).toEqual(['Read the project README'])
+  })
+
+  it('restores the full list when the all priorities filter is selected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /high priority tasks/ }))
+    expect(renderedTitles()).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: /tasks of any priority/ }))
+    expect(renderedTitles()).toHaveLength(3)
+  })
+
+  it('combines the priority filter with the status filter', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // High priority + Active -> the one high priority, non-completed task
+    await user.click(screen.getByRole('button', { name: /high priority tasks/ }))
+    await user.click(screen.getByRole('button', { name: /active tasks/ }))
+    expect(renderedTitles()).toEqual(['Tick a task to mark it as done'])
+
+    // High priority + Completed -> nothing matches
+    await user.click(screen.getByRole('button', { name: /completed tasks/ }))
+    expect(renderedTitles()).toEqual([])
+  })
+
+  it('shows an empty state when no task matches the combined filters', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /high priority tasks/ }))
+    await user.click(screen.getByRole('button', { name: /completed tasks/ }))
+
+    const list = document.querySelector('.app__panel')
+    expect(within(list).getByText('No completed tasks yet.')).toBeInTheDocument()
   })
 })

@@ -3,6 +3,7 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import * as ai from './ai.js'
 
 const LOAN_DAYS = 14
 const MAX_LOANS = 5
@@ -13,7 +14,7 @@ const DAY = 86400000
 const ok = (v) => typeof v === 'string' && v.trim().length > 0
 const httpError = (status, message) => Object.assign(new Error(message), { status })
 
-export function createApp(db, { secret = process.env.JWT_SECRET, now = () => new Date() } = {}) {
+export function createApp(db, { secret = process.env.JWT_SECRET, now = () => new Date(), llmImpl = null } = {}) {
   if (!secret) throw new Error('JWT_SECRET is required')
   const app = express()
   app.disable('x-powered-by')
@@ -93,13 +94,13 @@ export function createApp(db, { secret = process.env.JWT_SECRET, now = () => new
     const copies = Number(b.totalCopies ?? 1)
     if (!ok(b.title) || !ok(b.author) || !ok(b.isbn)) throw httpError(400, 'Title, author and ISBN required')
     if (!Number.isInteger(copies) || copies < 0 || copies > 1000) throw httpError(400, 'Invalid copy count')
-    return { isbn: b.isbn.trim(), title: b.title.trim(), author: b.author.trim(), category: ok(b.category) ? b.category.trim() : 'General', copies }
+    return { isbn: b.isbn.trim(), title: b.title.trim(), author: b.author.trim(), category: ok(b.category) ? b.category.trim() : 'General', description: typeof b.description === 'string' ? b.description.trim().slice(0, 2000) : '', copies }
   }
   api.post('/books', staff, (req, res) => {
     const b = bookInput(req.body)
     if (db.prepare('SELECT 1 FROM books WHERE isbn = ?').get(b.isbn)) throw httpError(409, 'ISBN already exists')
-    const info = db.prepare('INSERT INTO books (isbn,title,author,category,total_copies,available_copies) VALUES (?,?,?,?,?,?)')
-      .run(b.isbn, b.title, b.author, b.category, b.copies, b.copies)
+    const info = db.prepare('INSERT INTO books (isbn,title,author,category,description,total_copies,available_copies) VALUES (?,?,?,?,?,?,?)')
+      .run(b.isbn, b.title, b.author, b.category, b.description, b.copies, b.copies)
     audit(req.user.id, 'book.create', b.isbn)
     res.status(201).json(db.prepare('SELECT * FROM books WHERE id = ?').get(info.lastInsertRowid))
   })
@@ -110,8 +111,8 @@ export function createApp(db, { secret = process.env.JWT_SECRET, now = () => new
     const out = cur.total_copies - cur.available_copies
     if (b.copies < out) throw httpError(400, `Cannot reduce below ${out} copies currently on loan`)
     if (db.prepare('SELECT 1 FROM books WHERE isbn = ? AND id != ?').get(b.isbn, cur.id)) throw httpError(409, 'ISBN already exists')
-    db.prepare('UPDATE books SET isbn=?,title=?,author=?,category=?,total_copies=?,available_copies=? WHERE id=?')
-      .run(b.isbn, b.title, b.author, b.category, b.copies, b.copies - out, cur.id)
+    db.prepare('UPDATE books SET isbn=?,title=?,author=?,category=?,description=?,total_copies=?,available_copies=? WHERE id=?')
+      .run(b.isbn, b.title, b.author, b.category, b.description, b.copies, b.copies - out, cur.id)
     audit(req.user.id, 'book.update', String(cur.id))
     res.json(db.prepare('SELECT * FROM books WHERE id = ?').get(cur.id))
   })
@@ -270,6 +271,90 @@ export function createApp(db, { secret = process.env.JWT_SECRET, now = () => new
       reservations: one("SELECT COUNT(*) c FROM reservations WHERE status='waiting'"),
       unpaidFinesCents: one('SELECT COALESCE(SUM(fine_cents),0) c FROM loans WHERE returned_at IS NOT NULL AND fine_paid = 0'),
     })
+  })
+
+  // ---- AI features (local algorithms; optional LLM via AI_API_KEY)
+  const aiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60, skip: () => process.env.NODE_ENV === 'test' })
+  const ask = (m) => m.trim().slice(0, 500)
+  const allBooks = () => db.prepare('SELECT * FROM books').all()
+  const allLoans = () => db.prepare('SELECT * FROM loans').all()
+  const llm = (m, o) => (llmImpl ? llmImpl(m, o) : ai.callLLM(m))
+  api.use('/ai', aiLimiter)
+
+  api.get('/ai/status', (_req, res) => res.json({ llm: Boolean(process.env.AI_API_KEY) || Boolean(llmImpl) }))
+
+  api.get('/ai/search', (req, res) => {
+    if (!ok(req.query.q)) throw httpError(400, 'Query required')
+    res.json({ items: ai.semanticSearch(allBooks(), ask(req.query.q), 10) })
+  })
+  api.get('/ai/similar/:id', (req, res) => {
+    const id = Number(req.params.id)
+    if (!db.prepare('SELECT 1 FROM books WHERE id = ?').get(id)) throw httpError(404, 'Book not found')
+    res.json({ items: ai.similarBooks(allBooks(), id, 5) })
+  })
+  api.get('/ai/recommendations', (req, res) =>
+    res.json({ items: ai.recommend(allBooks(), allLoans(), req.user.id, 6) }))
+
+  api.post('/ai/categorize', staff, (req, res) => {
+    const { title, author, description } = req.body || {}
+    if (!ok(title)) throw httpError(400, 'Title required')
+    res.json(ai.categorize({ title, author: author || '', description: description || '' }))
+  })
+  api.post('/ai/describe', staff, async (req, res) => {
+    const { title, author, category } = req.body || {}
+    if (!ok(title) || !ok(author)) throw httpError(400, 'Title and author required')
+    const book = { title: title.trim(), author: author.trim(), category: ok(category) ? category.trim() : 'General' }
+    const text = await llm([
+      { role: 'system', content: 'You write concise, spoiler-free library catalogue blurbs (max 60 words).' },
+      { role: 'user', content: `Title: ${book.title}\nAuthor: ${book.author}\nCategory: ${book.category}` },
+    ])
+    res.json({ description: text || ai.extractiveDescription(book), source: text ? 'llm' : 'local' })
+  })
+  api.get('/ai/duplicates', staff, (_req, res) => res.json({ items: ai.findDuplicates(allBooks()) }))
+  api.get('/ai/overdue-risk', staff, (_req, res) => {
+    const loans = allLoans()
+    const items = db.prepare(`${loanSelect} WHERE l.returned_at IS NULL`).all()
+      .map((l) => ({ id: l.id, title: l.title, user_name: l.user_name, due_at: l.due_at, risk: ai.overdueRisk(l, loans, now()) }))
+      .sort((a, b) => b.risk - a.risk)
+    res.json({ items })
+  })
+  api.get('/ai/acquisitions', staff, (_req, res) =>
+    res.json({ items: ai.acquisitionSuggestions(allBooks(), allLoans(), db.prepare('SELECT * FROM reservations').all(), now()) }))
+
+  api.post('/ai/chat', async (req, res) => {
+    const message = req.body?.message
+    if (!ok(message)) throw httpError(400, 'Message required')
+    const msg = ask(message)
+    const u = req.user
+    const intent = ai.detectIntent(msg)
+    let reply, books = []
+    if (intent === 'loans' || intent === 'fines' || intent === 'renew') {
+      const mine = db.prepare(`${loanSelect} WHERE l.user_id = ? AND l.returned_at IS NULL ORDER BY l.due_at`).all(u.id)
+      const fines = mine.reduce((s, l) => s + fineFor(l), 0)
+      if (intent === 'fines') reply = fines ? `You currently owe ${(fines / 100).toFixed(2)} in accrued fines on overdue loans.` : 'You have no outstanding fines on active loans.'
+      else if (!mine.length) reply = 'You have no active loans.'
+      else reply = 'Your loans: ' + mine.map((l) => `"${l.title}" due ${l.due_at.slice(0, 10)}`).join('; ') + '.' + (intent === 'renew' ? ' You can renew each loan up to 2 times from the My loans page, unless someone has reserved it.' : '')
+    } else if (intent === 'recommend') {
+      books = ai.recommend(allBooks(), allLoans(), u.id, 3)
+      reply = books.length ? 'Here are some picks for you: ' + books.map((b) => `"${b.title}" (${b.reason})`).join('; ') + '.' : 'The catalog is empty right now.'
+    } else if (intent === 'similar') {
+      const hit = ai.semanticSearch(allBooks(), msg, 1)[0]
+      books = hit ? ai.similarBooks(allBooks(), hit.id, 3) : []
+      reply = hit ? `Books similar to "${hit.title}": ` + (books.map((b) => `"${b.title}"`).join(', ') || 'none found') + '.' : "I couldn't find that title."
+    } else if (intent === 'hours') {
+      reply = 'Please check the front desk for opening hours; I can help with searching books, loans, fines and recommendations.'
+    } else if (intent === 'help') {
+      reply = 'Hi! Ask me to find books by topic, recommend something, show your loans or fines.'
+    } else {
+      books = ai.semanticSearch(allBooks(), msg, 3)
+      reply = books.length ? 'I found: ' + books.map((b) => `"${b.title}" by ${b.author} (${b.available_copies} available)`).join('; ') + '.' : "I couldn't find matching books. Try different keywords."
+    }
+    // Optional LLM polish: only sends the already-computed, user-scoped answer.
+    const polished = await llm([
+      { role: 'system', content: 'You are a friendly library assistant. Rephrase the draft answer naturally. Do not add facts.' },
+      { role: 'user', content: `Question: ${msg}\nDraft answer: ${reply}` },
+    ])
+    res.json({ reply: polished || reply, intent, books: books.map(({ id, title, author }) => ({ id, title, author })), source: polished ? 'llm' : 'local' })
   })
 
   app.use('/api', api)

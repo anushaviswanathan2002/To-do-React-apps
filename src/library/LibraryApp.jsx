@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { AiAssistant, AiBookHelper, AiDiscover, AiInsights } from './AiFeatures.jsx'
 import { api, setToken, hasToken, money } from './api.js'
 
 function useAsync() {
@@ -41,9 +42,9 @@ function AuthForm({ onAuth }) {
   )
 }
 
-function BookForm({ book, onSaved, onCancel }) {
-  const [f, setF] = useState(book ? { isbn: book.isbn, title: book.title, author: book.author, category: book.category, totalCopies: book.total_copies }
-    : { isbn: '', title: '', author: '', category: '', totalCopies: 1 })
+function BookForm({ user, book, onSaved, onCancel }) {
+  const [f, setF] = useState(book ? { isbn: book.isbn, title: book.title, author: book.author, category: book.category, description: book.description || '', totalCopies: book.total_copies }
+    : { isbn: '', title: '', author: '', category: '', description: '', totalCopies: 1 })
   const [error, run] = useAsync()
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   const submit = (e) => {
@@ -60,6 +61,8 @@ function BookForm({ book, onSaved, onCancel }) {
       <label>Author<input value={f.author} onChange={set('author')} required /></label>
       <label>ISBN<input value={f.isbn} onChange={set('isbn')} required /></label>
       <label>Category<input value={f.category} onChange={set('category')} /></label>
+      <label>Description<textarea value={f.description} onChange={set('description')} maxLength={2000} /></label>
+      {user?.role !== 'member' && <AiBookHelper form={f} setForm={setF} />}
       <label>Copies<input type="number" min="0" value={f.totalCopies} onChange={set('totalCopies')} /></label>
       <Err msg={error} />
       <button type="submit">Save</button> <button type="button" className="link" onClick={onCancel}>Cancel</button>
@@ -92,7 +95,7 @@ function Catalog({ user }) {
       </div>
       <Err msg={error} />
       {notice && <p role="status">{notice}</p>}
-      {editing && <BookForm book={editing.id ? editing : null} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
+      {editing && <BookForm user={user} book={editing.id ? editing : null} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
       <table>
         <thead><tr><th>Title</th><th>Author</th><th>ISBN</th><th>Category</th><th>Available</th><th>Actions</th></tr></thead>
         <tbody>
@@ -227,7 +230,7 @@ export default function LibraryApp() {
   }, [])
   if (!ready) return <p>Loading…</p>
   if (!user) return <main className="lib"><AuthForm onAuth={setUser} /></main>
-  const tabs = [['catalog', 'Catalog'], ['loans', user.role === 'member' ? 'My loans' : 'Loans'], ...(user.role !== 'member' ? [['admin', 'Dashboard']] : [])]
+  const tabs = [['catalog', 'Catalog'], ['discover', 'Discover (AI)'], ['assistant', 'Assistant (AI)'], ['loans', user.role === 'member' ? 'My loans' : 'Loans'], ...(user.role !== 'member' ? [['admin', 'Dashboard'], ['insights', 'AI insights']] : [])]
   return (
     <main className="lib">
       <header className="lib-row">
@@ -238,6 +241,9 @@ export default function LibraryApp() {
       </header>
       {tab === 'catalog' && <Catalog user={user} />}
       {tab === 'loans' && <Loans user={user} />}
+      {tab === 'discover' && <AiDiscover />}
+      {tab === 'assistant' && <AiAssistant />}
+      {tab === 'insights' && <AiInsights />}
       {tab === 'admin' && <Admin user={user} />}
     </main>
   )

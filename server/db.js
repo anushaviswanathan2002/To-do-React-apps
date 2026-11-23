@@ -52,5 +52,7 @@ export function openDb(file = process.env.DB_FILE || 'library.db') {
     CREATE INDEX IF NOT EXISTS idx_loans_user ON loans(user_id);
     CREATE INDEX IF NOT EXISTS idx_loans_book ON loans(book_id);
   `)
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('books') WHERE name='description'").get())
+    db.exec("ALTER TABLE books ADD COLUMN description TEXT NOT NULL DEFAULT ''")
   return db
 }

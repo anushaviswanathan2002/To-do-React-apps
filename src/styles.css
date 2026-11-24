@@ -920,3 +920,21 @@ body {
     max-width: 12rem;
   }
 }
+
+/* Library app */
+.lib { max-width: 1000px; margin: 0 auto; padding: 1rem; font-family: system-ui, sans-serif; }
+.lib table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+.lib th, .lib td { text-align: left; padding: .5rem; border-bottom: 1px solid #ddd; }
+.lib-row { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin: .5rem 0; }
+.lib-card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0; display: grid; gap: .5rem; }
+.lib-auth { max-width: 380px; margin: 3rem auto; }
+.lib label { display: grid; gap: .25rem; }
+.lib input, .lib select, .lib button { font: inherit; padding: .4rem .6rem; }
+.lib button[aria-current="page"] { font-weight: 700; text-decoration: underline; }
+.lib button.link { background: none; border: 0; color: #0b5cad; cursor: pointer; text-decoration: underline; }
+.lib-error { color: #b00020; }
+.lib .hint { color: #666; font-size: .85rem; }
+.lib tr.overdue td { background: #fdecea; }
+.lib-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .75rem; }
+.lib-stats div { border: 1px solid #ddd; border-radius: 8px; padding: .75rem; }
+.lib-stats dd { margin: 0; font-size: 1.5rem; font-weight: 700; }

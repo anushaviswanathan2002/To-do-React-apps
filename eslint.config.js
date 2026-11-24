@@ -25,4 +25,8 @@ export default [
       ...reactRefresh.configs.vite.rules,
     },
   },
+  {
+    files: ['server/**/*.js'],
+    languageOptions: { globals: globals.node },
+  },
 ]

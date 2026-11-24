@@ -83,3 +83,18 @@ Due dates are stored as plain `YYYY-MM-DD` strings, which sort lexicographically
 overdue detection is a simple string comparison against today. The `useToday` hook
 recomputes the current date just after midnight so the overdue state never goes stale
 if the app is left open overnight.
+
+## Library Management System
+
+Full-stack app: React (Vite) frontend, Express API, SQLite database (`better-sqlite3`).
+
+- Auth with JWT + bcrypt; roles `admin`, `librarian`, `member` (first registered user is admin)
+- Catalog search/pagination, book CRUD, checkout/return/renew, reservation queue, overdue fines, member management, dashboard stats, audit log
+- Run: `npm run build`, then `JWT_SECRET=<secret> npm start` (optional `PORT`, `DB_FILE`); dev: `npm run dev:server` + `npm run dev`
+- Tests: `npm test` (API integration tests with supertest + UI tests)
+
+### AI features
+Run fully offline with local algorithms (TF-IDF); set `AI_API_KEY` (plus optional `AI_BASE_URL`, `AI_MODEL`; any OpenAI-compatible API) to additionally enable LLM-written descriptions and natural-language assistant replies.
+- Smart semantic search, "similar books", hybrid personalised recommendations (content + collaborative)
+- Chat assistant (loans, fines, search, recommendations; answers scoped to the signed-in user)
+- Staff: auto-categorisation/tagging, description generation, duplicate-record detection, overdue-risk prediction, acquisition (demand forecast) suggestions
